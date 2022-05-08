@@ -1,5 +1,5 @@
 /**
- * Created by szlat@softserveinc.com on 05/08/2022
+ * Created by szlat@softserveinc.com on 05/08/2022.
  * @description Utils class for emails.
  */
 public class EmailUtils {

@@ -1,6 +1,6 @@
 /**
- * @author szlat@softserveinc.com
- * @description Optional plugin that sends logs via emails.
+ * Created by szlat@softserveinc.com on 05/05/2022.
+ * @description Optional plugin that sends logs via email.
  */
 public without sharing class EmailLoggerPlugin implements LoggerPlugin.Triggerable {
     // Constants from LoggerParameter__mdt custom metadata type
