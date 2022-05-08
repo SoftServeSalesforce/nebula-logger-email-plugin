@@ -8,5 +8,8 @@
   "name": "nebula-logger-email-plugin",
   "namespace": "",
   "sfdcLoginUrl": "https://login.salesforce.com",
-  "sourceApiVersion": "54.0"
+  "sourceApiVersion": "54.0",
+  "packageAliases": {
+    "nebula-logger": "04t5Y0000015lgBQAQ"
+  }
 }

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomLabels xmlns="http://soap.sforce.com/2006/04/metadata">
+    <labels>
+        <fullName>EmailBody</fullName>
+        <categories>Email Logger Plugin</categories>
+        <language>en_US</language>
+        <protected>true</protected>
+        <shortDescription>Email Body</shortDescription>
+        <value>New log - {0}
+Start Time: {1}
+End Time: {2}
+Org Name: {3}
+Org Type: {4}
+Org Id: {5}
+Instance Name: {6}
+Logged By: {7}
+Log Link: {8}
+        </value>
+    </labels>
+    <labels>
+        <fullName>EmailSubject</fullName>
+        <categories>Email Logger Plugin</categories>
+        <language>en_US</language>
+        <protected>true</protected>
+        <shortDescription>Email Subject</shortDescription>
+        <value>New log - {0}</value>
+    </labels>
+</CustomLabels>
