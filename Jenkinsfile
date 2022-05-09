@@ -46,7 +46,6 @@ node {
                 if (robj.status != 0) { error 'org creation failed: ' + robj.message }
                 SFDC_USERNAME=robj.result.username
                 robj = null
-                is_scratch_org_exists = true
             }
 
             stage('Install Dependent Packages') {
@@ -70,11 +69,7 @@ node {
             stage('Deploy To Org') {
                 rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:auth:jwt:grant --clientid ${CONNECTED_APP_CONSUMER_KEY} --username ${ORG_USERNAME} --jwtkeyfile ${JWT_KEY_LOCATION} --setdefaultdevhubusername --instanceurl ${SFDC_HOST}"
                 if (rc != 0) { error 'hub org authorization failed' }
-                if (isProduction) {
-                    rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:source:deploy --targetusername ${ORG_USERNAME} -l RunLocalTests -p \"3rd-party,packages,force-app\""
-                } else if (isSandbox) {
-                    rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:source:deploy --targetusername ${ORG_USERNAME} -p \"3rd-party,packages,force-app\""
-                }
+                rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:source:deploy --targetusername ${ORG_USERNAME}"
                 if (rc != 0) {
                     error 'Deploy failed'
                 }
