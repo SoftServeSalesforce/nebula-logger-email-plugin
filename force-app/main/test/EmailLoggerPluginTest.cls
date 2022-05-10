@@ -29,8 +29,8 @@ public class EmailLoggerPluginTest {
     @IsTest
     private static void testProcessLogs_LoggingLevelBelowError() {
         TestUtils.mockConfigurations();
-        Log__c testLog1 = TestUtils.createLog(false);
-        Log__c testLog2 = TestUtils.createLog(false);
+        Log__c log1 = TestUtils.createLog(false);
+        Log__c log2 = TestUtils.createLog(false);
         LogEntry__c [] logEntries = new List<LogEntry__c>();
 
         Test.startTest();
