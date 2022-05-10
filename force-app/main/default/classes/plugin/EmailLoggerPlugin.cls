@@ -7,8 +7,8 @@ public without sharing class EmailLoggerPlugin implements LoggerPlugin.Triggerab
     private static final String EMAIL_QUEUE_NAME = LoggerParameter.getString('EmailLoggingQueue', null);
     private static final List<String> EMAIL_RECIPIENTS = getRecipients(EMAIL_QUEUE_NAME);
     private static final LoggingLevel LOGGING_LEVEL = Logger.getLoggingLevel(LoggerParameter.getString('EmailLoggingLevel', null));
-    private static final String ORG_WIDE_EMAIL_NAME = LoggerParameter.getString('EmailLoggingOrgWideAddress', null);
-    private static final Id ORG_WIDE_EMAIL_ID = EmailUtils.getOrgWideEmailAddress(ORG_WIDE_EMAIL_NAME)?.Id;
+    private static final String ORG_WIDE_EMAIL_NAME = LoggerParameter.getString('EmailLoggingOrgWideAddress', '');
+    private static final Id ORG_WIDE_EMAIL_ID = EmailLoggerEmailUtils.getOrgWideEmailAddress(ORG_WIDE_EMAIL_NAME)?.Id;
     private static final Integer LOG_ENTRIES_COUNT = LoggerParameter.getInteger('EmailLoggingLogEntryCount', 1);
 
     // Values shared across transaction
@@ -30,7 +30,7 @@ public without sharing class EmailLoggerPlugin implements LoggerPlugin.Triggerab
         }
 
         logs = (List<Log__c>) triggerContext.triggerNew;
-        if (triggerContext.triggerOperationType == TriggerOperation.AFTER_UPDATE) {
+        if (triggerContext.triggerOperationType == TriggerOperation.AFTER_UPDATE || triggerContext.triggerOperationType == TriggerOperation.AFTER_INSERT) {
             processLogs();
         }
     }

@@ -2,7 +2,7 @@
  * Created by szlat@softserveinc.com on 05/08/2022.
  * @description Utils class for emails.
  */
-public class EmailUtils {
+public class EmailLoggerEmailUtils {
     /**
      * @description Loads org-wide email address by developer name.
      * @param  orgWideName Org-Wide email address' developer name
@@ -13,7 +13,7 @@ public class EmailUtils {
         if (Test.isRunningTest()) {
             orgWide = new OrgWideEmailAddress(
                     Address = 'no@reply.com',
-                    DisplayName = TestUtils.ORG_WIDE_EMAIL_NAME,
+                    DisplayName = EmailLoggerTestUtils.ORG_WIDE_EMAIL_NAME,
                     IsAllowAllProfiles = true
                 );
         }
