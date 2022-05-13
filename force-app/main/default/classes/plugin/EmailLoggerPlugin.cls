@@ -59,8 +59,12 @@ public without sharing class EmailLoggerPlugin implements LoggerPlugin.Triggerab
                 }
             }
             if (!emails.isEmpty()) {
-                Messaging.SendEmailResult [] results = Messaging.sendEmail(emails);
-                processResults(results);
+                try {
+                    Messaging.SendEmailResult [] results = Messaging.sendEmail(emails);
+                    processResults(results);
+                } catch(Exception ex) {
+                    // preventing logger framework from not saving Log__c records
+                }               
             }
             if (logsSent) { 
                 flagLogsSent(fullLogs);
