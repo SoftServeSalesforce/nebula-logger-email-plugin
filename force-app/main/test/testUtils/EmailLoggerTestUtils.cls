@@ -3,7 +3,7 @@
  * @description Utils class for tests.
  */
 @IsTest
-public class TestUtils {
+public class EmailLoggerTestUtils {
     public static final String EMAIL_LOGGING_QUEUE_NAME = 'TestGroup';
     public static final LoggingLevel EMAIL_LOGGING_LEVEL = LoggingLevel.ERROR;
     public static final String ORG_WIDE_EMAIL_NAME = 'Logger Test';
