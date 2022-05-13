@@ -172,7 +172,7 @@ public without sharing class EmailLoggerPlugin implements LoggerPlugin.Triggerab
         AND MaxLogEntryLoggingLevelOrdinal__c >= :LOGGING_LEVEL.ordinal()];
     }
 
-    public static List<String> getRecipients(String queueName) {
+    private static List<String> getRecipients(String queueName) {
         List<String> recipients = new List<String>();
         Group [] loggingQueues = [SELECT Email, (SELECT UserOrGroupId FROM GroupMembers) FROM Group WHERE DeveloperName = :queueName AND Type = 'Queue' LIMIT 1];
         Group loggingQueue = (loggingQueues.isEmpty()) ? null : loggingQueues[0];
