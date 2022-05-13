@@ -44,7 +44,7 @@ public without sharing class EmailLoggerPlugin implements LoggerPlugin.Triggerab
             List<Messaging.SingleEmailMessage> emails = new List<Messaging.SingleEmailMessage>();
             if (!EMAIL_RECIPIENTS.isEmpty()) {
                 String orgWideEmailName = LoggerParameter.getString('EmailLoggingOrgWideAddress', '');
-                Id orgWideEmailId = EmailLoggerUtils.getOrgWideEmailAddress(ORG_WIDE_EMAIL_NAME)?.Id;
+                Id orgWideEmailId = EmailLoggerUtils.getOrgWideEmailAddress(orgWideEmailName)?.Id;
                 for (Log__c log : fullLogs) {
                     EmailNotificationDto notification = convertToEmail(log);
                     Messaging.SingleEmailMessage singleEmail = new Messaging.SingleEmailMessage();
