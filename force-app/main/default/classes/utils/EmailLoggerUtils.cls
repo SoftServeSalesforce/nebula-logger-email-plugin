@@ -16,7 +16,7 @@ public class EmailLoggerUtils {
                     DisplayName = EmailLoggerTestUtils.ORG_WIDE_EMAIL_NAME,
                     IsAllowAllProfiles = true
                 );
-        }else if (String.isNotBlank(orgWideName)) {
+        } else if (String.isNotBlank(orgWideName)) {
             List<OrgWideEmailAddress> addresses = [SELECT Id 
                                                     FROM OrgWideEmailAddress
                                                     WHERE DisplayName = :orgWideName LIMIT 1];
