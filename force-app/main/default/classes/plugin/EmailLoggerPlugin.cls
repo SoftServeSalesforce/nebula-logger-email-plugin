@@ -8,7 +8,7 @@ public without sharing class EmailLoggerPlugin implements LoggerPlugin.Triggerab
     private static final List<String> EMAIL_RECIPIENTS = getRecipients(EMAIL_QUEUE_NAME);
     private static final LoggingLevel LOGGING_LEVEL = Logger.getLoggingLevel(LoggerParameter.getString('EmailLoggingLevel', null));
     private static final String ORG_WIDE_EMAIL_NAME = LoggerParameter.getString('EmailLoggingOrgWideAddress', '');
-    private static final Id ORG_WIDE_EMAIL_ID = EmailLoggerEmailUtils.getOrgWideEmailAddress(ORG_WIDE_EMAIL_NAME)?.Id;
+    private static final Id ORG_WIDE_EMAIL_ID = EmailLoggerUtils.getOrgWideEmailAddress(ORG_WIDE_EMAIL_NAME)?.Id;
     private static final Integer LOG_ENTRIES_COUNT = LoggerParameter.getInteger('EmailLoggingLogEntryCount', 1);
 
     // Values shared across transaction
@@ -48,12 +48,13 @@ public without sharing class EmailLoggerPlugin implements LoggerPlugin.Triggerab
                 for (Log__c log : fullLogs) {
                     EmailNotificationDto notification = convertToEmail(log);
                     Messaging.SingleEmailMessage singleEmail = new Messaging.SingleEmailMessage();
+                    singleEmail.setOrgWideEmailAddressId(ORG_WIDE_EMAIL_ID);
                     singleEmail.setSubject(notification.subject);
                     singleEmail.setToAddresses(EMAIL_RECIPIENTS);
                     singleEmail.setPlainTextBody(notification.body);
                     singleEmail.setFileAttachments(new Messaging.EmailFileAttachment [] 
                                         {notification.attachment});
-                    singleEmail.setOrgWideEmailAddressId(ORG_WIDE_EMAIL_ID);
+                    
                     emails.add(singleEmail);
                 }
             }
@@ -167,19 +168,22 @@ public without sharing class EmailLoggerPlugin implements LoggerPlugin.Triggerab
         AND MaxLogEntryLoggingLevelOrdinal__c >= :LOGGING_LEVEL.ordinal()];
     }
 
-    private static List<String> getRecipients(String queueName) {
+    public static List<String> getRecipients(String queueName) {
         List<String> recipients = new List<String>();
-        Group loggingQueue = [SELECT Email, (SELECT UserOrGroupId FROM GroupMembers) FROM Group WHERE DeveloperName = :queueName AND Type = 'Queue' LIMIT 1][0];
+        Group [] loggingQueues = [SELECT Email, (SELECT UserOrGroupId FROM GroupMembers) FROM Group WHERE DeveloperName = :queueName AND Type = 'Queue' LIMIT 1];
+        Group loggingQueue = (loggingQueues.isEmpty()) ? null : loggingQueues[0];
         if (loggingQueue != null) {
             for (GroupMember gm : loggingQueue.GroupMembers) {
                 if (gm.UserOrGroupId.getSobjectType() == User.SObjectType) {
                     recipients.add(String.valueOf(gm.UserOrGroupId));
                 }
             }
+
+            if (String.isNotBlank(loggingQueue.Email)) {
+                recipients.add(loggingQueue.Email);
+            }
         }
-        if (String.isNotBlank(loggingQueue.Email)) {
-            recipients.add(loggingQueue.Email);
-        }
+        
         return recipients;
     }
 

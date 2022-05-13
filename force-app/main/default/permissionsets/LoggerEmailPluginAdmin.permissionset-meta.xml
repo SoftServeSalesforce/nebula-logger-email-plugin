@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
+    <classAccesses>
+        <apexClass>EmailLoggerPlugin</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <description>Provides additional access for the Logger Email plugin</description>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Log__c.EmailLogSent__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Log__c.EmailLogSentTimestamp__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <hasActivationRequired>false</hasActivationRequired>
+    <label>Logger: Email Plugin Admin</label>
+</PermissionSet>
