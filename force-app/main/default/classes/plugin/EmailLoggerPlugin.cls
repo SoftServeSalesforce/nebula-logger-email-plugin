@@ -7,8 +7,6 @@ public without sharing class EmailLoggerPlugin implements LoggerPlugin.Triggerab
     private static final String EMAIL_QUEUE_NAME = LoggerParameter.getString('EmailLoggingQueue', null);
     private static final List<String> EMAIL_RECIPIENTS = getRecipients(EMAIL_QUEUE_NAME);
     private static final LoggingLevel LOGGING_LEVEL = Logger.getLoggingLevel(LoggerParameter.getString('EmailLoggingLevel', null));
-    private static final String ORG_WIDE_EMAIL_NAME = LoggerParameter.getString('EmailLoggingOrgWideAddress', '');
-    private static final Id ORG_WIDE_EMAIL_ID = EmailLoggerUtils.getOrgWideEmailAddress(ORG_WIDE_EMAIL_NAME)?.Id;
     private static final Integer LOG_ENTRIES_COUNT = LoggerParameter.getInteger('EmailLoggingLogEntryCount', 1);
 
     // Values shared across transaction
@@ -45,10 +43,12 @@ public without sharing class EmailLoggerPlugin implements LoggerPlugin.Triggerab
             List<Log__c> fullLogs = requeryLogs(logIds);
             List<Messaging.SingleEmailMessage> emails = new List<Messaging.SingleEmailMessage>();
             if (!EMAIL_RECIPIENTS.isEmpty()) {
+                String orgWideEmailName = LoggerParameter.getString('EmailLoggingOrgWideAddress', '');
+                Id orgWideEmailId = EmailLoggerUtils.getOrgWideEmailAddress(ORG_WIDE_EMAIL_NAME)?.Id;
                 for (Log__c log : fullLogs) {
                     EmailNotificationDto notification = convertToEmail(log);
                     Messaging.SingleEmailMessage singleEmail = new Messaging.SingleEmailMessage();
-                    singleEmail.setOrgWideEmailAddressId(ORG_WIDE_EMAIL_ID);
+                    singleEmail.setOrgWideEmailAddressId(orgWideEmailId);
                     singleEmail.setSubject(notification.subject);
                     singleEmail.setToAddresses(EMAIL_RECIPIENTS);
                     singleEmail.setPlainTextBody(notification.body);
@@ -204,9 +204,7 @@ public without sharing class EmailLoggerPlugin implements LoggerPlugin.Triggerab
                 logsSentCounter++;
             }
         }
-        if (logsSentCounter > 0) {
-            logsSent = true;
-        }
+        logsSent = logsSentCounter > 0;
     }
 
     private class EmailNotificationDto {
