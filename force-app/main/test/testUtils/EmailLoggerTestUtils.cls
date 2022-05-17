@@ -4,10 +4,6 @@
  */
 @IsTest
 public class EmailLoggerTestUtils {
-    public static final String EMAIL_LOGGING_QUEUE_NAME = 'TestGroup';
-    public static final LoggingLevel EMAIL_LOGGING_LEVEL = LoggingLevel.ERROR;
-    public static final String ORG_WIDE_EMAIL_NAME = 'Logger Test';
-    public static final Integer LOG_ENTRY_COUNT = 5;
    
     public static Log__c createLog(Boolean toInsert) {
         Log__c log = new Log__c(
@@ -39,14 +35,15 @@ public class EmailLoggerTestUtils {
         return logEntries;
     }
 
-    public static void mockConfigurations() {
+    public static void mockPluginConfigurations(String queueName, LoggingLevel loggingLevel, String orgWideEmailName, Integer logEntryCount, Integer resendPolicy) {
         LoggerTestConfigurator.setMock(
             new LoggerPlugin__mdt(DeveloperName = 'EmailLoggerPlugin', IsEnabled__c = true, SObjectHandlerApexClass__c = EmailLoggerPlugin.class.getName())
         );
-        LoggerTestConfigurator.setMock(new LoggerParameter__mdt(DeveloperName = 'EmailLoggingQueue', Value__c = EMAIL_LOGGING_QUEUE_NAME));
-        LoggerTestConfigurator.setMock(new LoggerParameter__mdt(DeveloperName = 'EmailLoggingLevel', Value__c = EMAIL_LOGGING_LEVEL.name()));
-        LoggerTestConfigurator.setMock(new LoggerParameter__mdt(DeveloperName = 'EmailLoggingOrgWideAddress', Value__c = ORG_WIDE_EMAIL_NAME));
-        LoggerTestConfigurator.setMock(new LoggerParameter__mdt(DeveloperName = 'EmailLoggingLogEntryCount', Value__c = String.valueOf(LOG_ENTRY_COUNT)));
+        LoggerTestConfigurator.setMock(new LoggerParameter__mdt(DeveloperName = 'EmailLogRecipientsQueueName', Value__c = queueName));
+        LoggerTestConfigurator.setMock(new LoggerParameter__mdt(DeveloperName = 'MinEmailLoggingLevel', Value__c = loggingLevel.name()));
+        LoggerTestConfigurator.setMock(new LoggerParameter__mdt(DeveloperName = 'EmailLoggingOrgWideEmailAddressName', Value__c = orgWideEmailName));
+        LoggerTestConfigurator.setMock(new LoggerParameter__mdt(DeveloperName = 'LimitEmailLogEntryCount', Value__c = String.valueOf(logEntryCount)));
+        LoggerTestConfigurator.setMock(new LoggerParameter__mdt(DeveloperName = 'FailedEmailLogResendPolicy', Value__c = String.valueOf(resendPolicy)));
     }
 
     public static User createAdminUser(Boolean toInsert) {
@@ -70,10 +67,10 @@ public class EmailLoggerTestUtils {
         return admin;
     }
 
-    public static void mockGroupMember(User groupMember) {
+    public static void mockGroupMember(User groupMember, String groupName) {
         Group mockGroup = new Group(
-            Name = EMAIL_LOGGING_QUEUE_NAME,
-            DeveloperName = EMAIL_LOGGING_QUEUE_NAME,
+            Name = groupName,
+            DeveloperName = groupName,
             Type = 'Queue'
         );
         insert mockGroup;

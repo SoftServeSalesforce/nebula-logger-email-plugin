@@ -4,10 +4,11 @@
  */
 public without sharing class EmailLoggerPlugin implements LoggerPlugin.Triggerable {
     // Constants from LoggerParameter__mdt custom metadata type
-    private static final String EMAIL_QUEUE_NAME = LoggerParameter.getString('EmailLoggingQueue', null);
-    private static final List<String> EMAIL_RECIPIENTS = getRecipients(EMAIL_QUEUE_NAME);
-    private static final LoggingLevel LOGGING_LEVEL = Logger.getLoggingLevel(LoggerParameter.getString('EmailLoggingLevel', null));
-    private static final Integer LOG_ENTRIES_COUNT = LoggerParameter.getInteger('EmailLoggingLogEntryCount', 1);
+    private static final String LOG_RECIPIENTS_QUEUE_NAME = LoggerParameter.getString('EmailLogRecipientsQueueName', null);
+    private static final List<String> LOG_RECIPIENTS = getRecipients(LOG_RECIPIENTS_QUEUE_NAME);
+    private static final LoggingLevel MIN_LOGGING_LEVEL = Logger.getLoggingLevel(LoggerParameter.getString('MinEmailLoggingLevel', null));
+    private static final Integer LIMIT_LOG_ENTRIES_COUNT = LoggerParameter.getInteger('LimitEmailLogEntryCount', 1);
+    private static final Integer FAILED_LOGS_RESEND_POLICY = LoggerParameter.getInteger('FailedEmailLogResendPolicy', 0);
 
     // Values shared across transaction
     private static List<Log__c> logs;
@@ -23,12 +24,14 @@ public without sharing class EmailLoggerPlugin implements LoggerPlugin.Triggerab
      * @param  triggerContext The instance of `LoggerTriggerableContext`, provided by the logging system
      */
     public void execute(LoggerPlugin__mdt configuration, LoggerTriggerableContext triggerContext) {
-        if (triggerContext.SObjectType != Schema.Log__c.SObjectType || LOGGING_LEVEL == null) {
+        if (triggerContext.SObjectType != Schema.Log__c.SObjectType || MIN_LOGGING_LEVEL == null) {
             return;
         }
 
         logs = (List<Log__c>) triggerContext.triggerNew;
-        if (triggerContext.triggerOperationType == TriggerOperation.AFTER_UPDATE || triggerContext.triggerOperationType == TriggerOperation.AFTER_INSERT) {
+        // handling after update only because we don't have enough info about logs
+        // on after insert
+        if (triggerContext.triggerOperationType == TriggerOperation.AFTER_UPDATE) {
             processLogs();
         }
     }
@@ -37,47 +40,45 @@ public without sharing class EmailLoggerPlugin implements LoggerPlugin.Triggerab
         //to avoid trigger recursion
         //update in line 62 causes trigger recursion
         if (isFirstExecution) {
-            List<Log__c> filtered = filterNotSentLogs(logs);
-            Set<Id> logIds = (new Map<Id, Log__c>(filtered)).keySet();
+            List<Log__c> filteredLogs = filterNotSentLogs(logs);
+            Set<Id> logIds = (new Map<Id, Log__c>(filteredLogs)).keySet();
             // requery logs with their log entries
-            List<Log__c> fullLogs = requeryLogs(logIds);
-            List<Messaging.SingleEmailMessage> emails = new List<Messaging.SingleEmailMessage>();
-            if (!EMAIL_RECIPIENTS.isEmpty()) {
-                String orgWideEmailName = LoggerParameter.getString('EmailLoggingOrgWideAddress', '');
-                Id orgWideEmailId = EmailLoggerUtils.getOrgWideEmailAddress(orgWideEmailName)?.Id;
+            List<Log__c> fullLogs = requeryFullLogs(logIds);
+            List<Messaging.SingleEmailMessage> emailLogs = new List<Messaging.SingleEmailMessage>();
+            if (!LOG_RECIPIENTS.isEmpty()) {
+                String defaultSenderName = LoggerParameter.getString('EmailLoggingOrgWideEmailAddressName', null);
+                Id defaultSenderId = EmailLoggerUtils.getOrgWideEmailAddress(defaultSenderName)?.Id;
                 for (Log__c log : fullLogs) {
-                    EmailNotificationDto notification = convertToEmail(log);
-                    Messaging.SingleEmailMessage singleEmail = new Messaging.SingleEmailMessage();
-                    singleEmail.setOrgWideEmailAddressId(orgWideEmailId);
-                    singleEmail.setSubject(notification.subject);
-                    singleEmail.setToAddresses(EMAIL_RECIPIENTS);
-                    singleEmail.setPlainTextBody(notification.body);
-                    singleEmail.setFileAttachments(new Messaging.EmailFileAttachment [] 
-                                        {notification.attachment});
+                    EmailNotificationDto convertedLog = convertToEmail(log);
+                    Messaging.SingleEmailMessage emailLog = new Messaging.SingleEmailMessage();
+                    emailLog.setOrgWideEmailAddressId(defaultSenderId);
+                    emailLog.setSubject(convertedLog.subject);
+                    emailLog.setToAddresses(LOG_RECIPIENTS);
+                    emailLog.setPlainTextBody(convertedLog.body);
+                    emailLog.setFileAttachments(new Messaging.EmailFileAttachment [] 
+                                        {convertedLog.attachment});
                     
-                    emails.add(singleEmail);
+                    emailLogs.add(emailLog);
                 }
             }
-            if (!emails.isEmpty()) {
+
+            if (!emailLogs.isEmpty()) {
                 try {
-                    Messaging.SendEmailResult [] results = Messaging.sendEmail(emails);
-                    processResults(results);
-                } catch(Exception ex) {
-                    // preventing logger framework from not saving Log__c records
-                }               
+                    Messaging.SendEmailResult [] emailResults = Messaging.sendEmail(emailLogs);
+                    processEmailResults(emailResults);
+                } catch (Exception ex) {
+                    // prevent logger framework from not saving logs
+                } finally {
+                    postProcessLogs(fullLogs);
+                }
             }
-            if (logsSent) { 
-                flagLogsSent(fullLogs);
-                isFirstExecution = false;
-                update fullLogs;   
-            }
-        }   
+        }
     }
 
     private static EmailNotificationDto convertToEmail(Log__c log) {
-        EmailNotificationDto notification = new EmailNotificationDto();
+        EmailNotificationDto emailNotification = new EmailNotificationDto();
         String logName = log.Name;
-        notification.subject = String.format(Label.EmailSubject, new String [] { logName });
+        emailNotification.subject = String.format(Label.EmailSubject, new String [] { logName });
         String startTime = String.valueOf(log.StartTime__c);
         String endTime = String.valueOf(log.EndTime__c);
         String loggedBy = (String.isNotBlank(log.LoggedByUsername__c)) ? log.LoggedByUsername__c : log.LoggedByUsernameLink__c;
@@ -86,7 +87,7 @@ public without sharing class EmailLoggerPlugin implements LoggerPlugin.Triggerab
         String orgId = log.OrganizationId__c;
         String instanceName = log.OrganizationInstanceName__c;
         String logUrl = Url.getSalesforceBaseUrl().toExternalForm() + '/' + log.Id;
-        notification.body = String.format(Label.EmailBody, new String[] {
+        emailNotification.body = String.format(Label.EmailBody, new String [] {
                         logName,
                         startTime,
                         endTime,
@@ -97,8 +98,8 @@ public without sharing class EmailLoggerPlugin implements LoggerPlugin.Triggerab
                         loggedBy,
                         logUrl
         });
-        notification.attachment = convertToAttachment(log.LogEntries__r, logName);
-        return notification;
+        emailNotification.attachment = convertToAttachment(log.LogEntries__r, logName);
+        return emailNotification;
     }
 
     private static Messaging.EmailFileAttachment convertToAttachment(List<LogEntry__c> logEntries, String fileName) {
@@ -113,12 +114,12 @@ public without sharing class EmailLoggerPlugin implements LoggerPlugin.Triggerab
             }
             fileBody += '====================================================================== \n';
         }
-        Messaging.EmailFileAttachment attachment = new Messaging.EmailFileAttachment();
-        attachment.setFileName(fileName + '.txt');
-        attachment.setBody(Blob.valueOf(fileBody));
-        attachment.setContentType('text/plain');
-        attachment.setInline(false);
-        return attachment;
+        Messaging.EmailFileAttachment emailAttachment = new Messaging.EmailFileAttachment();
+        emailAttachment.setFileName(fileName + '.txt');
+        emailAttachment.setBody(Blob.valueOf(fileBody));
+        emailAttachment.setContentType('text/plain');
+        emailAttachment.setInline(false);
+        return emailAttachment;
     }
 
     private static List<Log__c> filterNotSentLogs(Log__c [] logs) {
@@ -131,12 +132,15 @@ public without sharing class EmailLoggerPlugin implements LoggerPlugin.Triggerab
         return filtered;
     }
 
-    private static List<Log__c> requeryLogs(Set<Id> logIds) {
+    private static List<Log__c> requeryFullLogs(Set<Id> logIds) {
+        Datetime failedToSendMinDT = System.now().addDays(-FAILED_LOGS_RESEND_POLICY);
+        // requery new logs and old failed to send logs that have EmailLogFailedTimestamp__c >= failedToSendMinDT
         return [SELECT
             Id,
             Name,
             ApiVersion__c,
             EmailLogSent__c,
+            EmailLogFailedTimestamp__c,
             EmailLogSentTimestamp__c,
             LoggedByUsername__c,
             LoggedByUsernameLink__c,
@@ -162,14 +166,14 @@ public without sharing class EmailLoggerPlugin implements LoggerPlugin.Triggerab
                 SELECT Id, LoggingLevel__c, Message__c, 
                     StackTrace__c, ExceptionStackTrace__c
                 FROM LogEntries__r
-                WHERE LoggingLevelOrdinal__c >= :LOGGING_LEVEL.ordinal()
+                WHERE LoggingLevelOrdinal__c >= :MIN_LOGGING_LEVEL.ordinal()
                 ORDER BY Timestamp__c DESC
-                LIMIT :LOG_ENTRIES_COUNT
+                LIMIT :LIMIT_LOG_ENTRIES_COUNT
             )
         FROM Log__c
         WHERE
-        (Id IN :logIds OR EmailLogSent__c = FALSE)
-        AND MaxLogEntryLoggingLevelOrdinal__c >= :LOGGING_LEVEL.ordinal()];
+        (MaxLogEntryLoggingLevelOrdinal__c >= :MIN_LOGGING_LEVEL.ordinal())
+            AND (EmailLogFailedTimestamp__c >= :failedToSendMinDT OR Id IN :logIds)];
     }
 
     private static List<String> getRecipients(String queueName) {
@@ -187,24 +191,46 @@ public without sharing class EmailLoggerPlugin implements LoggerPlugin.Triggerab
                 recipients.add(loggingQueue.Email);
             }
         }
-        
         return recipients;
     }
 
-    private static void flagLogsSent(List<Log__c> logs) {
-        for (Log__c log : logs) {
-            log.EmailLogSent__c = true;
-            log.EmailLogSentTimestamp__c = Datetime.now();
-        }
-    }
-
-    private static void processResults(Messaging.SendEmailResult [] results) {
+    private static void processEmailResults(Messaging.SendEmailResult [] results) {
         for (Messaging.SendEmailResult result : results) {
             if (result.isSuccess()) {
                 logsSentCounter++;
             }
         }
         logsSent = logsSentCounter > 0;
+    }
+
+    private static void postProcessLogs(List<Log__c> logs) {
+        if (logsSent) {
+            setLogsSentSucess(logs);
+        } else {
+            setLogsSentFailure(logs);
+        }
+        isFirstExecution = false;
+        update logs;
+    }
+
+    private static void setLogsSentSucess(List<Log__c> logs) {
+        for (Log__c log : logs) {
+            log.EmailLogSent__c = true;
+            log.EmailLogSentTimestamp__c = System.now();
+            if (log.EmailLogFailedTimestamp__c != null) {
+                log.EmailLogFailedTimestamp__c = null;
+            }
+        }
+    }
+
+    private static void setLogsSentFailure(List<Log__c> logs) {
+        for (Log__c log : logs) {
+            log.EmailLogSent__c = false;
+            log.EmailLogFailedTimestamp__c = System.now();
+            if (log.EmailLogSentTimestamp__c != null) {
+                log.EmailLogSentTimestamp__c = null;
+            }
+        }
     }
 
     private class EmailNotificationDto {
