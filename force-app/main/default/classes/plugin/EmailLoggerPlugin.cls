@@ -67,6 +67,7 @@ public without sharing class EmailLoggerPlugin implements LoggerPlugin.Triggerab
                     Messaging.SendEmailResult [] emailResults = Messaging.sendEmail(emailLogs);
                     processEmailResults(emailResults);
                 } catch (Exception ex) {
+                    System.debug(ex.getMessage());
                     // prevent logger framework from not saving logs
                 } finally {
                     postProcessLogs(fullLogs);
@@ -205,15 +206,15 @@ public without sharing class EmailLoggerPlugin implements LoggerPlugin.Triggerab
 
     private static void postProcessLogs(List<Log__c> logs) {
         if (logsSent) {
-            setLogsSentSucess(logs);
+            markLogsAsSent(logs);
         } else {
-            setLogsSentFailure(logs);
+            markLogsAsFailedToSend(logs);
         }
         isFirstExecution = false;
         update logs;
     }
 
-    private static void setLogsSentSucess(List<Log__c> logs) {
+    private static void markLogsAsSent(List<Log__c> logs) {
         for (Log__c log : logs) {
             log.EmailLogSent__c = true;
             log.EmailLogSentTimestamp__c = System.now();
@@ -223,7 +224,7 @@ public without sharing class EmailLoggerPlugin implements LoggerPlugin.Triggerab
         }
     }
 
-    private static void setLogsSentFailure(List<Log__c> logs) {
+    private static void markLogsAsFailedToSend(List<Log__c> logs) {
         for (Log__c log : logs) {
             log.EmailLogSent__c = false;
             log.EmailLogFailedTimestamp__c = System.now();
