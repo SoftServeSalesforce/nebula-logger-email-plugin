@@ -7,6 +7,11 @@
     <description>Provides additional access for the Logger Email plugin</description>
     <fieldPermissions>
         <editable>true</editable>
+        <field>Log__c.EmailLogFailedTimestamp__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
         <field>Log__c.EmailLogSent__c</field>
         <readable>true</readable>
     </fieldPermissions>
