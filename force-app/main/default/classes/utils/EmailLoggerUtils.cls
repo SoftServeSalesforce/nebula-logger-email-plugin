@@ -10,7 +10,7 @@ public class EmailLoggerUtils {
      */
     public static OrgWideEmailAddress getOrgWideEmailAddress(String emailAddressName) {
         OrgWideEmailAddress orgWideEmailAddress = null;
-        if (!String.isNotBlank(emailAddressName)) {
+        if (String.isNotBlank(emailAddressName)) {
             if (Test.isRunningTest()) {
                 orgWideEmailAddress = getMockOrgWideEmailAddress(emailAddressName);
             } else {
