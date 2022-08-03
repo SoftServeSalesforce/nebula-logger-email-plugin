@@ -66,10 +66,19 @@ node {
                 }
             }
         } else {
+            stage('Install Dependent Packages') {
+                env.SFDX_DISABLE_SOURCE_MEMBER_POLLING = true
+                rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:package:install --package nebula-logger --noprompt --targetusername ${SFDC_USERNAME} --wait 5"
+                if (rc != 0) {
+                    deleteScratchOrg(toolbelt, SFDC_USERNAME)
+                    error 'Install Nebula Logger failed'
+                }
+            }
+
             stage('Deploy To Org') {
                 rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:auth:jwt:grant --clientid ${CONNECTED_APP_CONSUMER_KEY} --username ${ORG_USERNAME} --jwtkeyfile ${JWT_KEY_LOCATION} --setdefaultdevhubusername --instanceurl ${SFDC_HOST}"
                 if (rc != 0) { error 'hub org authorization failed' }
-                rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:source:deploy --targetusername ${ORG_USERNAME}"
+                rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:source:deploy --targetusername ${ORG_USERNAME} -p \"force-app\""
                 if (rc != 0) {
                     error 'Deploy failed'
                 }
