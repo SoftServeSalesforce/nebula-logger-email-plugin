@@ -39,7 +39,7 @@ node {
         }
 
         stage('Create Package Version') {
-            output = sh returnStdout: true, script: "${toolbelt}/sfdx force:package:version:create --package \"Nebula Logger - Plugin - Email"\ --installationkeybypass --wait 10 --json --targetdevhubusername ${ORG_USERNAME}"
+            output = sh returnStdout: true, script: "${toolbelt}/sfdx force:package:version:create --package \"Nebula Logger - Plugin - Email\" -d force-app --installationkeybypass --wait 10 --json --targetdevhubusername ${ORG_USERNAME}"
             sleep 300
             def jsonSlurper = new JsonSlurperClassic()
             def response = jsonSlurper.parseText(output)
