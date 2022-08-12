@@ -45,7 +45,6 @@ node {
             def response = jsonSlurper.parseText(output)
             PACKAGE_VERSION = response.result.SubscriberPackageVersionId
             response = null
-            echo ${PACKAGE_VERSION}
         }
         
         if (!isDevHub) {
