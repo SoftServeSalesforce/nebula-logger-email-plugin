@@ -152,4 +152,5 @@ void installDependencies(toolbelt, userName) {
         if (rc != 0 ) {
             error 'cannot install dependencies'
         }
+    }
 }
