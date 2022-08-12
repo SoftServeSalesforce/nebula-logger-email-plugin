@@ -36,6 +36,7 @@ node {
         stage('Authorize DevHub') {
             rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:auth:jwt:grant --clientid ${CONNECTED_APP_CONSUMER_KEY} --username ${ORG_USERNAME} --jwtkeyfile ${JWT_KEY_LOCATION} --instanceurl ${SFDC_HOST}"
             if (rc != 0) { error 'hub org authorization failed' }
+            rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:config:set defaultdevhubusername=${ORG_USERNAME}"
         }
 
         stage('Create Package Version') {
