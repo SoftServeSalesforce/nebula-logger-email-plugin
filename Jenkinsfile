@@ -66,7 +66,7 @@ node {
         }
 
         stage('Install Package Version') {
-            rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:package:install --package ${PACKAGE_VERSION} --noprompt --targetusername ${isDevHub ? ORG_USERNAME : SFDC_USERNAME} --wait 5"
+            rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:package:install --package ${PACKAGE_VERSION} -r --noprompt --targetusername ${isDevHub ? ORG_USERNAME : SFDC_USERNAME} --wait 5"
             if (rc != 0) {
                 deletePackageVersion(toolbelt, PACKAGE_VERSION)
                 if (!isDevHub) {
@@ -144,11 +144,13 @@ void deletePackageVersion(toolbelt, packageVersion) {
 }
 
 void installDependencies(toolbelt, userName) {
-        def data = readJSON file:'sfdx-project.json'
+        def inputFile = new File('.\sfdx-project.json')
+        def jsonSlurper = new JsonSlurperClassic()
+        def data = jsonSlurper.parseText(inputFile)
         def packages = data.packageDirectories.dependencies.flatten()                
         packages.each { item -> 
         println "$item.value"
-        rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:package:install -p $item.value --noprompt --targetusername ${userName} --wait 5"
+        rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:package:install -p $item.value -r --noprompt --targetusername ${userName} --wait 5"
         if (rc != 0 ) {
             error 'cannot install dependencies'
         }
