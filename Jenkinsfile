@@ -143,7 +143,7 @@ void deletePackageVersion(toolbelt, packageVersion) {
     }
 }
 
-void installDependencies(toolbelt, userName) {
+void installDependencies(toolbelt, userName, isScratchOrg) {
         def inputFile = new File('.//sfdx-project.json')
         def jsonSlurper = new JsonSlurperClassic()
         def data = jsonSlurper.parse(inputFile)
