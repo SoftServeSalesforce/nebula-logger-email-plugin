@@ -61,8 +61,21 @@ node {
         }
 
         stage('Instal Dependencies') {
-            user = isDevHub ? ORG_USERNAME : SFDC_USERNAME
-            installDependencies(toolbelt, user)
+            def inputFile = new File('.//sfdx-project.json')
+            def jsonSlurper = new JsonSlurperClassic()
+            def data = jsonSlurper.parse(inputFile, "UTF-8")
+            def packages = data.packageDirectories.dependencies.flatten()                
+            packages.each { item -> 
+                println "$item.value"
+                rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:package:install -p $item.value -r --noprompt --targetusername ${isDevHub ? ORG_USERNAME : SFDC_USERNAME} --wait 5"
+                if (rc != 0 ) {
+                    deletePackageVersion(toolbelt, PACKAGE_VERSION)
+                    if (!isDevHub) {
+                        deleteScratchOrg(toolbelt, SFDC_USERNAME)
+                    }
+                    error 'cannot install dependencies'
+                }
+            }
         }
 
         stage('Install Package Version') {
@@ -139,20 +152,6 @@ void deletePackageVersion(toolbelt, packageVersion) {
         rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:package:delete --p ${packageVersion} --noprompt"
         if (rc != 0) {
             error 'package version deletion request failed'
-        }
-    }
-}
-
-void installDependencies(toolbelt, userName, isScratchOrg) {
-        def inputFile = new File('.//sfdx-project.json')
-        def jsonSlurper = new JsonSlurperClassic()
-        def data = jsonSlurper.parse(inputFile)
-        def packages = data.packageDirectories.dependencies.flatten()                
-        packages.each { item -> 
-        println "$item.value"
-        rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:package:install -p $item.value -r --noprompt --targetusername ${userName} --wait 5"
-        if (rc != 0 ) {
-            error 'cannot install dependencies'
         }
     }
 }
