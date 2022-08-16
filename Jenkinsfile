@@ -61,12 +61,10 @@ node {
         }
 
         stage('Instal Dependencies') {
-            def fileName = 'sfdx-project.json'
-            def text = readFile(fileName)
-            def jsonSlurper = new JsonSlurperClassic()
-            def data = jsonSlurper.parseText(text)
+            def data = readJSON file:'sfdx-project.json'
             def packages = data.packageDirectories.dependencies.flatten()                
             packages.each { item -> 
+                println "$item"
                 println "$item.value"
                 rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:package:install -p $item.value -r --noprompt --targetusername ${isDevHub ? ORG_USERNAME : SFDC_USERNAME} --wait 5"
                 if (rc != 0 ) {
