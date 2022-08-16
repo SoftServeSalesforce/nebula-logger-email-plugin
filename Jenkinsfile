@@ -61,7 +61,7 @@ node {
         }
 
         stage('Instal Dependencies') {
-            def filePath = "$env.WORKSPACE\\sfdx-project.json"
+            def filePath = "$env.WORKSPACE//sfdx-project.json"
             def inputFile = new File(filePath)
             def jsonSlurper = new JsonSlurperClassic()
             def data = jsonSlurper.parse(inputFile, "UTF-8")
