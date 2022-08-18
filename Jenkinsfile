@@ -39,26 +39,26 @@ node {
             rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:config:set defaultdevhubusername=${ORG_USERNAME}"
         }
 
-        stage('Create Package Version') {
-            output = sh returnStdout: true, script: "${toolbelt}/sfdx force:package:version:create --package \"Nebula Logger - Plugin - Email\" -d force-app --installationkeybypass --wait 10 --json --targetdevhubusername ${ORG_USERNAME}"
-            sleep 300
-            def jsonSlurper = new JsonSlurperClassic()
-            def response = jsonSlurper.parseText(output)
-            PACKAGE_VERSION = response.result.SubscriberPackageVersionId
-            response = null
-        }
+        // stage('Create Package Version') {
+        //     output = sh returnStdout: true, script: "${toolbelt}/sfdx force:package:version:create --package \"Nebula Logger - Plugin - Email\" -d force-app --installationkeybypass --wait 10 --json --targetdevhubusername ${ORG_USERNAME}"
+        //     sleep 300
+        //     def jsonSlurper = new JsonSlurperClassic()
+        //     def response = jsonSlurper.parseText(output)
+        //     PACKAGE_VERSION = response.result.SubscriberPackageVersionId
+        //     response = null
+        // }
         
-        if (!isDevHub) {
-            stage('Create Scratch Org') {
-                rmsg = sh returnStdout: true, script: "${toolbelt}/sfdx force:org:create --definitionfile config/project-scratch-def.json -d 1 --json --setdefaultusername"
-                printf rmsg
-                def jsonSlurper = new JsonSlurperClassic()
-                def robj = jsonSlurper.parseText(rmsg)
-                if (robj.status != 0) { error 'org creation failed: ' + robj.message }
-                SFDC_USERNAME=robj.result.username
-                robj = null
-            }
-        }
+        // if (!isDevHub) {
+        //     stage('Create Scratch Org') {
+        //         rmsg = sh returnStdout: true, script: "${toolbelt}/sfdx force:org:create --definitionfile config/project-scratch-def.json -d 1 --json --setdefaultusername"
+        //         printf rmsg
+        //         def jsonSlurper = new JsonSlurperClassic()
+        //         def robj = jsonSlurper.parseText(rmsg)
+        //         if (robj.status != 0) { error 'org creation failed: ' + robj.message }
+        //         SFDC_USERNAME=robj.result.username
+        //         robj = null
+        //     }
+        // }
 
         stage('Instal Dependencies') {
             def filePath = "$env.WORKSPACE/sfdx-project.json"
@@ -67,7 +67,7 @@ node {
             def packages = data.packageDirectories.dependencies.flatten()          
             packages.each { entry -> 
                 entry.each { k, v ->
-                    rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:package:install -p $v -r --noprompt --targetusername ${isDevHub ? ORG_USERNAME : SFDC_USERNAME} --wait 5"
+                    rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:package:install -p $v -r --noprompt --targetusername ${ORG_USERNAME} --wait 5"
                     if (rc != 0 ) {
                         deletePackageVersion(toolbelt, PACKAGE_VERSION)
                         if (!isDevHub) {
@@ -77,41 +77,42 @@ node {
                     }
                 }
             }
+            data = null
         }
 
-        stage('Install Package Version') {
-            rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:package:install --package ${PACKAGE_VERSION} -r --noprompt --targetusername ${isDevHub ? ORG_USERNAME : SFDC_USERNAME} --wait 5"
-            if (rc != 0) {
-                deletePackageVersion(toolbelt, PACKAGE_VERSION)
-                if (!isDevHub) {
-                    deleteScratchOrg(toolbelt, SFDC_USERNAME)
-                }
-                error 'Install Package version failed'
-            }
-        }
+        // stage('Install Package Version') {
+        //     rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:package:install --package ${PACKAGE_VERSION} -r --noprompt --targetusername ${isDevHub ? ORG_USERNAME : SFDC_USERNAME} --wait 5"
+        //     if (rc != 0) {
+        //         deletePackageVersion(toolbelt, PACKAGE_VERSION)
+        //         if (!isDevHub) {
+        //             deleteScratchOrg(toolbelt, SFDC_USERNAME)
+        //         }
+        //         error 'Install Package version failed'
+        //     }
+        // }
 
-        stage('Run Apex Tests') {
-                sh "mkdir -p ${RUN_ARTIFACT_DIR}"
-                timeout(time: 1000, unit: 'SECONDS') {
-                rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:apex:test:run --testlevel RunLocalTests --wait 10 --outputdir ${RUN_ARTIFACT_DIR} --resultformat tap --targetusername ${isDevHub ? ORG_USERNAME : SFDC_USERNAME}"
-                if (rc != 0) {
-                    error 'apex test run failed'
-                    deletePackageVersion(toolbelt, PACKAGE_VERSION)
-                    if (!isDevHub) {
-                        deleteScratchOrg(toolbelt, SFDC_USERNAME) 
-                    }            
-                }
-            }
-        }
+        // stage('Run Apex Tests') {
+        //         sh "mkdir -p ${RUN_ARTIFACT_DIR}"
+        //         timeout(time: 1000, unit: 'SECONDS') {
+        //         rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:apex:test:run --testlevel RunLocalTests --wait 10 --outputdir ${RUN_ARTIFACT_DIR} --resultformat tap --targetusername ${isDevHub ? ORG_USERNAME : SFDC_USERNAME}"
+        //         if (rc != 0) {
+        //             error 'apex test run failed'
+        //             deletePackageVersion(toolbelt, PACKAGE_VERSION)
+        //             if (!isDevHub) {
+        //                 deleteScratchOrg(toolbelt, SFDC_USERNAME) 
+        //             }            
+        //         }
+        //     }
+        // }
 
-        if (!isDevHub) {
-            stage('Delete Package Version') {
-               deletePackageVersion(toolbelt, PACKAGE_VERSION) 
-            }
-            stage('Delete Test Org') {
-                deleteScratchOrg(toolbelt, SFDC_USERNAME) 
-            } 
-        }
+        // if (!isDevHub) {
+        //     stage('Delete Package Version') {
+        //        deletePackageVersion(toolbelt, PACKAGE_VERSION) 
+        //     }
+        //     stage('Delete Test Org') {
+        //         deleteScratchOrg(toolbelt, SFDC_USERNAME) 
+        //     } 
+        // }
 
         stage('PMD Code Analysis') {
             rc = sh returnStatus: true, script: "sudo bash ./pmd/bin/run.sh pmd -d ./force-app/ -f xml -R ./ruleset.xml > pmd_result.xml"
