@@ -67,10 +67,10 @@ node {
             //println data.packageDirectories.dependencies.SubscriberPackageVersionId
             def packages = data.packageDirectories.dependencies.flatten()
             println packages             
-            packages.each { item -> 
-                println "$item.key"
-                println "$item.value"
-                rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:package:install -p $item.value -r --noprompt --targetusername ${isDevHub ? ORG_USERNAME : SFDC_USERNAME} --wait 5"
+            packages.each { k, v -> 
+                println "$k"
+                println "$v"
+                rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:package:install -p $v -r --noprompt --targetusername ${isDevHub ? ORG_USERNAME : SFDC_USERNAME} --wait 5"
                 if (rc != 0 ) {
                     deletePackageVersion(toolbelt, PACKAGE_VERSION)
                     if (!isDevHub) {
