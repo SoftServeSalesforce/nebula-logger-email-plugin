@@ -48,23 +48,23 @@ node {
         //     response = null
         // }
         
-        if (!isDevHub) {
-            stage('Create Scratch Org') {
-                rmsg = sh returnStdout: true, script: "${toolbelt}/sfdx force:org:create --definitionfile config/project-scratch-def.json -d 1 --json --setdefaultusername"
-                printf rmsg
-                def jsonSlurper = new JsonSlurperClassic()
-                def robj = jsonSlurper.parseText(rmsg)
-                if (robj.status != 0) { error 'org creation failed: ' + robj.message }
-                SFDC_USERNAME=robj.result.username
-                robj = null
-            }
-        }
+        // if (!isDevHub) {
+        //     stage('Create Scratch Org') {
+        //         rmsg = sh returnStdout: true, script: "${toolbelt}/sfdx force:org:create --definitionfile config/project-scratch-def.json -d 1 --json --setdefaultusername"
+        //         printf rmsg
+        //         def jsonSlurper = new JsonSlurperClassic()
+        //         def robj = jsonSlurper.parseText(rmsg)
+        //         if (robj.status != 0) { error 'org creation failed: ' + robj.message }
+        //         SFDC_USERNAME=robj.result.username
+        //         robj = null
+        //     }
+        // }
 
         stage('Instal Dependencies') {
             def filePath = "$env.WORKSPACE/sfdx-project.json"
             def inputFile = new File(filePath)
-            def jsonSlurper = new JsonSlurperClassic()
-            def data = jsonSlurper.parseText(readFile(filePath))
+            def data = new JsonSlurperClassic().parseText(readFile(filePath))
+            println data
             def packages = data.packageDirectories.dependencies.flatten()                
             packages.each { item -> 
                 println "$item.value"
