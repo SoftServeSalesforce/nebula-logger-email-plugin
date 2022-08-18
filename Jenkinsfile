@@ -46,7 +46,7 @@ node {
             sleep 300
             def response = parseJson(output)
             PACKAGE_VERSION = response.result.SubscriberPackageVersionId
-            echo ${PACKAGE_VERSION}
+            printl "${PACKAGE_VERSION}"
             response = null
         }
         
