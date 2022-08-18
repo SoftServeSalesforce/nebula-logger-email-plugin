@@ -44,8 +44,9 @@ node {
         stage('Create Package Version') {
             output = sh returnStdout: true, script: "${toolbelt}/sfdx force:package:version:create --package \"Nebula Logger - Plugin - Email\" -d force-app --installationkeybypass --wait 10 --json --targetdevhubusername ${ORG_USERNAME}"
             sleep 300
-            def response = new JsonSlurperClassic().parseText(output)
+            def response = parseJson(output)
             PACKAGE_VERSION = response.result.SubscriberPackageVersionId
+            echo ${PACKAGE_VERSION}
             response = null
         }
         
@@ -66,7 +67,7 @@ node {
             def packages = data.packageDirectories.dependencies.flatten()          
             packages.each { entry -> 
                 entry.each { k, v ->
-                    rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:package:install --package $v -r --noprompt --targetusername ${ORG_USERNAME} --wait 5"
+                    rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:package:install --package $v -r --noprompt --targetusername ${isDevHub ? ORG_USERNAME : SFDC_USERNAME} --wait 5"
                     if (rc != 0 ) {
                         deletePackageVersion(toolbelt, PACKAGE_VERSION)
                         if (!isDevHub) {
@@ -129,11 +130,11 @@ node {
     }
 }
 
-    @NonCPS
-    def parseJson(String jsonString) {
-        def obj = new JsonSlurperClassic().parseText(jsonString)
-        obj
-    }
+@NonCPS
+def parseJson(String jsonString) {
+    def obj = new JsonSlurperClassic().parseText(jsonString)
+    obj
+}
 
 boolean stringCredentialsExist(String id) {
     try {
