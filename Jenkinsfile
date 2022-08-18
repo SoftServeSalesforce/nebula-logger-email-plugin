@@ -62,12 +62,11 @@ node {
 
         stage('Instal Dependencies') {
             def filePath = "$env.WORKSPACE/sfdx-project.json"
-            def inputFile = new File(filePath)
             def data = new JsonSlurperClassic().parseText(readFile(filePath))
             def packages = data.packageDirectories.dependencies.flatten()          
             packages.each { entry -> 
                 entry.each { k, v ->
-                    rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:package:install -p $v -r --noprompt --targetusername ${ORG_USERNAME} --wait 5"
+                    rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:package:install --package $v -r --noprompt --targetusername ${ORG_USERNAME} --wait 5"
                     if (rc != 0 ) {
                         deletePackageVersion(toolbelt, PACKAGE_VERSION)
                         if (!isDevHub) {
