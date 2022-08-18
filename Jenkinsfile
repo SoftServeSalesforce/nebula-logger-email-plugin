@@ -16,11 +16,6 @@ node {
     def toolbelt = tool 'toolbelt'
     def PACKAGE_VERSION
 
-    @NonCPS
-    def parseJson(String jsonString) {
-        def obj = new JsonSlurperClassic().parseText(jsonString)
-        obj
-    }
 
     // Default dev hub values
     withCredentials([
@@ -133,6 +128,12 @@ node {
         }
     }
 }
+
+    @NonCPS
+    def parseJson(String jsonString) {
+        def obj = new JsonSlurperClassic().parseText(jsonString)
+        obj
+    }
 
 boolean stringCredentialsExist(String id) {
     try {
