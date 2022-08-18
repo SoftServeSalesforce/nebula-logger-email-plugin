@@ -66,7 +66,7 @@ node {
             def data = new JsonSlurperClassic().parseText(readFile(filePath))
             //println data.packageDirectories.dependencies.SubscriberPackageVersionId
             def packages = data.packageDirectories.dependencies.flatten()
-            println packages             
+            //println packages             
             packages.each { entry -> 
                 //println "$entry"
                 entry.each { k, v ->
