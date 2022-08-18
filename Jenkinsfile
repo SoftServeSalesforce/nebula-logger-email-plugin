@@ -1,5 +1,6 @@
 #!groovy
 import groovy.json.JsonSlurperClassic
+import com.cloudbees.groovy.cps.NonCPS
 node {
 
     def BUILD_NUMBER=env.BUILD_NUMBER
@@ -14,6 +15,12 @@ node {
     def CONNECTED_APP_CONSUMER_KEY=env.CONNECTED_APP_CONSUMER_KEY_DH
     def toolbelt = tool 'toolbelt'
     def PACKAGE_VERSION
+
+    @NonCPS
+    def parseJson(String jsonString) {
+        def obj = new JsonSlurperClassic().parseText(jsonString)
+        obj
+    }
 
     // Default dev hub values
     withCredentials([
@@ -60,7 +67,7 @@ node {
 
         stage('Instal Dependencies') {
             def filePath = "$env.WORKSPACE/sfdx-project.json"
-            def data = new JsonSlurperClassic().parseText(readFile(filePath))
+            def data = parseJson(readFile(filePath))
             def packages = data.packageDirectories.dependencies.flatten()          
             packages.each { entry -> 
                 entry.each { k, v ->
