@@ -39,14 +39,14 @@ node {
             rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:config:set defaultdevhubusername=${ORG_USERNAME}"
         }
 
-        stage('Create Package Version') {
-            output = sh returnStdout: true, script: "${toolbelt}/sfdx force:package:version:create --package \"Nebula Logger - Plugin - Email\" -d force-app --installationkeybypass --wait 10 --json --targetdevhubusername ${ORG_USERNAME}"
-            sleep 300
-            def jsonSlurper = new JsonSlurperClassic()
-            def response = jsonSlurper.parseText(output)
-            PACKAGE_VERSION = response.result.SubscriberPackageVersionId
-            response = null
-        }
+        // stage('Create Package Version') {
+        //     output = sh returnStdout: true, script: "${toolbelt}/sfdx force:package:version:create --package \"Nebula Logger - Plugin - Email\" -d force-app --installationkeybypass --wait 10 --json --targetdevhubusername ${ORG_USERNAME}"
+        //     sleep 300
+        //     def jsonSlurper = new JsonSlurperClassic()
+        //     def response = jsonSlurper.parseText(output)
+        //     PACKAGE_VERSION = response.result.SubscriberPackageVersionId
+        //     response = null
+        // }
         
         if (!isDevHub) {
             stage('Create Scratch Org') {
@@ -64,7 +64,7 @@ node {
             def filePath = "$env.WORKSPACE/sfdx-project.json"
             def inputFile = new File(filePath)
             def jsonSlurper = new JsonSlurperClassic()
-            def data = jsonSlurper.parse(inputFile, "UTF-8")
+            def data = jsonSlurper.parseText(readFile(filePath))
             def packages = data.packageDirectories.dependencies.flatten()                
             packages.each { item -> 
                 println "$item.value"
