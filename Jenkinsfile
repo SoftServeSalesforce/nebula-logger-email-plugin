@@ -39,39 +39,34 @@ node {
             rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:config:set defaultdevhubusername=${ORG_USERNAME}"
         }
 
-        // stage('Create Package Version') {
-        //     output = sh returnStdout: true, script: "${toolbelt}/sfdx force:package:version:create --package \"Nebula Logger - Plugin - Email\" -d force-app --installationkeybypass --wait 10 --json --targetdevhubusername ${ORG_USERNAME}"
-        //     sleep 300
-        //     def jsonSlurper = new JsonSlurperClassic()
-        //     def response = jsonSlurper.parseText(output)
-        //     PACKAGE_VERSION = response.result.SubscriberPackageVersionId
-        //     response = null
-        // }
+        stage('Create Package Version') {
+            output = sh returnStdout: true, script: "${toolbelt}/sfdx force:package:version:create --package \"Nebula Logger - Plugin - Email\" -d force-app --installationkeybypass --wait 10 --json --targetdevhubusername ${ORG_USERNAME}"
+            sleep 300
+            def jsonSlurper = new JsonSlurperClassic()
+            def response = jsonSlurper.parseText(output)
+            PACKAGE_VERSION = response.result.SubscriberPackageVersionId
+            response = null
+        }
         
-        // if (!isDevHub) {
-        //     stage('Create Scratch Org') {
-        //         rmsg = sh returnStdout: true, script: "${toolbelt}/sfdx force:org:create --definitionfile config/project-scratch-def.json -d 1 --json --setdefaultusername"
-        //         printf rmsg
-        //         def jsonSlurper = new JsonSlurperClassic()
-        //         def robj = jsonSlurper.parseText(rmsg)
-        //         if (robj.status != 0) { error 'org creation failed: ' + robj.message }
-        //         SFDC_USERNAME=robj.result.username
-        //         robj = null
-        //     }
-        // }
+        if (!isDevHub) {
+            stage('Create Scratch Org') {
+                rmsg = sh returnStdout: true, script: "${toolbelt}/sfdx force:org:create --definitionfile config/project-scratch-def.json -d 1 --json --setdefaultusername"
+                printf rmsg
+                def jsonSlurper = new JsonSlurperClassic()
+                def robj = jsonSlurper.parseText(rmsg)
+                if (robj.status != 0) { error 'org creation failed: ' + robj.message }
+                SFDC_USERNAME=robj.result.username
+                robj = null
+            }
+        }
 
         stage('Instal Dependencies') {
             def filePath = "$env.WORKSPACE/sfdx-project.json"
             def inputFile = new File(filePath)
             def data = new JsonSlurperClassic().parseText(readFile(filePath))
-            //println data.packageDirectories.dependencies.SubscriberPackageVersionId
-            def packages = data.packageDirectories.dependencies.flatten()
-            //println packages             
+            def packages = data.packageDirectories.dependencies.flatten()          
             packages.each { entry -> 
-                //println "$entry"
                 entry.each { k, v ->
-                    // println "$k"
-                    // println "$v"
                     rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:package:install -p $v -r --noprompt --targetusername ${isDevHub ? ORG_USERNAME : SFDC_USERNAME} --wait 5"
                     if (rc != 0 ) {
                         deletePackageVersion(toolbelt, PACKAGE_VERSION)
