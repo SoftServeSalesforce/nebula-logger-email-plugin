@@ -157,7 +157,7 @@ void deleteScratchOrg(toolbelt, userName) {
 
 void deletePackageVersion(toolbelt, packageVersion) {
     timeout(time: 120, unit: 'SECONDS') {
-        rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:package:delete --package ${packageVersion} --noprompt"
+        rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:package:version:delete --package ${packageVersion} --noprompt"
         if (rc != 0) {
             error 'package version deletion request failed'
         }
