@@ -5,7 +5,7 @@
             "default": true,
             "dependencies": [
                 {
-                    "subscriberPackageVersionId": "04t5Y0000015lgBQAQ"
+                    "subscriberPackageVersionId": "04t5Y0000015lmOQAQ"
                 }
             ],
             "package": "Nebula Logger - Plugin - Email",

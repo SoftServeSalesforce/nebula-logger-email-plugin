@@ -1,5 +1,6 @@
 #!groovy
 import groovy.json.JsonSlurperClassic
+import com.cloudbees.groovy.cps.NonCPS
 node {
 
     def BUILD_NUMBER=env.BUILD_NUMBER
@@ -13,7 +14,8 @@ node {
     def JWT_KEY_LOCATION = '/var/lib/jenkins/certificates/server.key'
     def CONNECTED_APP_CONSUMER_KEY=env.CONNECTED_APP_CONSUMER_KEY_DH
     def toolbelt = tool 'toolbelt'
-    def NEBULA_LOGGER_PACKAGE_ID ='04t5Y0000015lgBQAQ'
+    def PACKAGE_VERSION
+
 
     // Default dev hub values
     withCredentials([
@@ -32,72 +34,84 @@ node {
     boolean isDevHub = env.BRANCH_NAME.equalsIgnoreCase('main')
 
     withCredentials([file(credentialsId: JWT_KEY_CRED_ID, variable: 'jwt_key_file')]) {
+
+        stage('Authorize DevHub') {
+            rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:auth:jwt:grant --clientid ${CONNECTED_APP_CONSUMER_KEY} --username ${ORG_USERNAME} --jwtkeyfile ${JWT_KEY_LOCATION} --instanceurl ${SFDC_HOST}"
+            if (rc != 0) { error 'hub org authorization failed' }
+            rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:config:set defaultdevhubusername=${ORG_USERNAME}"
+        }
+
+        stage('Create Package Version') {
+            output = sh returnStdout: true, script: "${toolbelt}/sfdx force:package:version:create --package \"Nebula Logger - Plugin - Email\" -d force-app --installationkeybypass --wait 10 --json --targetdevhubusername ${ORG_USERNAME}"
+            sleep 300
+            def response = parseJson(output)
+            PACKAGE_VERSION = response.result.SubscriberPackageVersionId
+            println "${PACKAGE_VERSION}"
+            response = null
+        }
         
         if (!isDevHub) {
             stage('Create Scratch Org') {
-
-                rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:auth:jwt:grant --clientid ${CONNECTED_APP_CONSUMER_KEY} --username ${ORG_USERNAME} --jwtkeyfile ${JWT_KEY_LOCATION} --instanceurl ${SFDC_HOST}"
-                if (rc != 0) { error 'hub org authorization failed' }
-                rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:config:set defaultdevhubusername=${ORG_USERNAME}"
-                // need to pull out assigned username
                 rmsg = sh returnStdout: true, script: "${toolbelt}/sfdx force:org:create --definitionfile config/project-scratch-def.json -d 1 --json --setdefaultusername"
                 printf rmsg
-                def jsonSlurper = new JsonSlurperClassic()
-                def robj = jsonSlurper.parseText(rmsg)
+                def robj = new JsonSlurperClassic().parseText(rmsg)
                 if (robj.status != 0) { error 'org creation failed: ' + robj.message }
                 SFDC_USERNAME=robj.result.username
                 robj = null
             }
+        }
 
-            stage('Install Dependent Packages') {
-                env.SFDX_DISABLE_SOURCE_MEMBER_POLLING = true
-                rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:package:install --package ${NEBULA_LOGGER_PACKAGE_ID} --noprompt --targetusername ${SFDC_USERNAME} --wait 5"
-                if (rc != 0) {
+        stage('Instal Dependencies') {
+            def filePath = "$env.WORKSPACE/sfdx-project.json"
+            def data = parseJson(readFile(filePath))
+            def packages = data.packageDirectories.dependencies.flatten()          
+            packages.each { entry -> 
+                entry.each { k, v ->
+                    rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:package:install --package $v -r --noprompt --targetusername ${isDevHub ? ORG_USERNAME : SFDC_USERNAME} --wait 5"
+                    if (rc != 0 ) {
+                        deletePackageVersion(toolbelt, PACKAGE_VERSION)
+                        if (!isDevHub) {
+                            deleteScratchOrg(toolbelt, SFDC_USERNAME)
+                        }
+                        error 'cannot install dependencies'
+                    }
+                }
+            }
+            data = null
+        }
+
+        stage('Install Package Version') {
+            rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:package:install --package ${PACKAGE_VERSION} -r --noprompt --targetusername ${isDevHub ? ORG_USERNAME : SFDC_USERNAME} --wait 5"
+            if (rc != 0) {
+                deletePackageVersion(toolbelt, PACKAGE_VERSION)
+                if (!isDevHub) {
                     deleteScratchOrg(toolbelt, SFDC_USERNAME)
-                    error 'Install Nebula Logger failed'
                 }
-            }
-
-            stage('Push To Scratch Org') {
-                env.SFDX_DISABLE_SOURCE_MEMBER_POLLING = true
-                rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:source:push --targetusername ${SFDC_USERNAME}"
-                if (rc != 0) {
-                    deleteScratchOrg(toolbelt, SFDC_USERNAME) 
-                    error 'push failed'
-                }
-            }
-        } else {
-            stage('Install Dependent Packages') {
-                env.SFDX_DISABLE_SOURCE_MEMBER_POLLING = true
-                rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:auth:jwt:grant --clientid ${CONNECTED_APP_CONSUMER_KEY} --username ${ORG_USERNAME} --jwtkeyfile ${JWT_KEY_LOCATION} --setdefaultdevhubusername --instanceurl ${SFDC_HOST}"
-                if (rc != 0) { error 'hub org authorization failed' }
-                rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:package:install --package ${NEBULA_LOGGER_PACKAGE_ID} --noprompt --targetusername ${ORG_USERNAME} --wait 5"
-            }
-
-            stage('Deploy To Org') {
-                if (rc != 0) { error 'hub org authorization failed' }
-                rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:source:deploy --targetusername ${ORG_USERNAME} -p \"force-app\""
-                if (rc != 0) {
-                    error 'Deploy failed'
-                }
+                error 'Install Package version failed'
             }
         }
-        stage('Run Apex Test') {
+
+        stage('Run Apex Tests') {
                 sh "mkdir -p ${RUN_ARTIFACT_DIR}"
                 timeout(time: 1000, unit: 'SECONDS') {
                 rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:apex:test:run --testlevel RunLocalTests --wait 10 --outputdir ${RUN_ARTIFACT_DIR} --resultformat tap --targetusername ${isDevHub ? ORG_USERNAME : SFDC_USERNAME}"
                 if (rc != 0) {
                     error 'apex test run failed'
+                    deletePackageVersion(toolbelt, PACKAGE_VERSION)
                     if (!isDevHub) {
                         deleteScratchOrg(toolbelt, SFDC_USERNAME) 
                     }            
                 }
             }
-            if (!isDevHub) {
-                stage('Delete Test Org') {
-                    deleteScratchOrg(toolbelt, SFDC_USERNAME) 
-                }
+        }
+
+        if (!isDevHub) {
+            stage('Delete Package Version') {
+               deletePackageVersion(toolbelt, PACKAGE_VERSION) 
             }
+            stage('Delete Test Org') {
+                deleteScratchOrg(toolbelt, SFDC_USERNAME) 
+            } 
         }
 
         stage('PMD Code Analysis') {
@@ -116,6 +130,12 @@ node {
     }
 }
 
+@NonCPS
+def parseJson(String jsonString) {
+    def obj = new JsonSlurperClassic().parseText(jsonString)
+    obj
+}
+
 boolean stringCredentialsExist(String id) {
     try {
         withCredentials([string(credentialsId: id, variable: 'irrelevant')]) {
@@ -131,6 +151,15 @@ void deleteScratchOrg(toolbelt, userName) {
         rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:org:delete --targetusername ${userName} --noprompt"
         if (rc != 0) {
             error 'org deletion request failed'
+        }
+    }
+}
+
+void deletePackageVersion(toolbelt, packageVersion) {
+    timeout(time: 120, unit: 'SECONDS') {
+        rc = sh returnStatus: true, script: "${toolbelt}/sfdx force:package:version:delete --package ${packageVersion} --noprompt"
+        if (rc != 0) {
+            error 'package version deletion request failed'
         }
     }
 }
