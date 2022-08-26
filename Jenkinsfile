@@ -43,7 +43,7 @@ node {
 
         stage('Create Package Version') {
             output = sh returnStdout: true, script: "${toolbelt}/sfdx force:package:version:create --package \"Nebula Logger - Plugin - Email\" -d force-app -c --installationkeybypass --wait 10 --json --targetdevhubusername ${ORG_USERNAME}"
-            sleep 300
+            sleep 500
             def response = parseJson(output)
             PACKAGE_VERSION = response.result.SubscriberPackageVersionId
             println "${PACKAGE_VERSION}"
